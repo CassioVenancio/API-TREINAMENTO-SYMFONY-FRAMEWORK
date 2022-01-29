@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Medico;
 use App\Helper\MedicoFactory;
+use App\Repository\MedicoRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -21,16 +22,21 @@ class MedicosController extends AbstractController
     /** @var MedicoFactory */
     private $medicoFactory;
 
-    public function __construct(EntityManagerInterface $entityManagerInterface,
-        MedicoFactory $medicoFactory
-    )
-    {
+    /** @var MedicosRepository */
+    private $medicosRepository;
+
+    public function __construct(
+        EntityManagerInterface $entityManagerInterface,
+        MedicoFactory $medicoFactory,
+        MedicoRepository $medicosRepository
+    ) {
         $this->entityManger = $entityManagerInterface;
         $this->medicoFactory = $medicoFactory;
+        $this->medicosRepository = $medicosRepository;
     }
 
     /** @Route("/medicos", methods={"POST"}) */
-    public function novo(Request $request): Response
+    public function novoMedico(Request $request): Response
     {
         $corpoRequisicao = $request->getContent();
         $medico = $this->medicoFactory->criarMedico($corpoRequisicao);
@@ -42,18 +48,14 @@ class MedicosController extends AbstractController
     }
 
     /** @Route("/medicos", methods={"GET"}) */
-    public function buscarTodos(): Response
+    public function buscarTodosMedicos(): Response
     {
-        $repositorioDeMedicos = $this
-            ->getDoctrine()
-            ->getRepository(Medico::class);
-
-        $medicoList = $repositorioDeMedicos->findAll();
+        $medicoList = $this->medicosRepository->findAll();
         return new JsonResponse($medicoList);
     }
 
     /** @Route("/medicos/{id}", methods={"GET"}) */
-    public function buscarUm(int $id): Response
+    public function buscarMedicoPorId(int $id): Response
     {
         $medico = $this->buscaMedico($id);
         $codigoRetorno = 200;
@@ -94,13 +96,22 @@ class MedicosController extends AbstractController
 
         return new Response('', Response::HTTP_NO_CONTENT);
     }
+    
+    /** @Route("/especialidades/{especialidadeId}/medicos", methods={"GET"}) */
+    public function buscaMedicoPorEspecialidade(
+        int $especialidadeId
+    ): Response {
+
+        $medicos = $this->medicosRepository->findBy([
+            'especialidade' => $especialidadeId
+        ]);
+
+        return new JsonResponse($medicos);
+    }
 
     private function buscaMedico(int $id)
     {
-        $repositorioDeMedicos = $this
-            ->getDoctrine()
-            ->getRepository(Medico::class);
-        $medico = $repositorioDeMedicos->find($id);
+        $medico = $this->medicosRepository->find($id);
         return $medico;
     }
 }
