@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Helper\EntidadeFactory;
+use App\Helper\ExtratorDadosRequest;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ObjectRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -18,14 +19,18 @@ abstract class BaseController extends AbstractController
 
     protected EntidadeFactory $factory;
 
+    protected ExtratorDadosRequest $extratorDadosRequest;
+
     public function __construct(
         ObjectRepository $repository,
         EntityManagerInterface $entityManager,
-        EntidadeFactory $factory
+        EntidadeFactory $factory,
+        ExtratorDadosRequest $extratorDadosRequest
     ) {
         $this->repository = $repository;
         $this->entityManager = $entityManager;
         $this->factory = $factory;
+        $this->extratorDadosRequest = $extratorDadosRequest;
     }
 
     public function novo(Request $request): Response
@@ -56,11 +61,18 @@ abstract class BaseController extends AbstractController
         return new JsonResponse($entidadeExistente);
     }
 
-    public function buscarTodos(): Response
+    public function buscarTodos(Request $request)
     {
-        $entityList = $this->repository->findAll();
-
-        return new JsonResponse($entityList);
+        $informacoesDeOrdenacao = $this->extratorDadosRequest->buscaDadosOrdenacao($request);
+        $informacoesDeFiltro = $this->extratorDadosRequest->buscaDadosFiltro($request);
+        [$paginaAtual, $itensPorPagina] = $this->extratorDadosRequest->buscaDadosPaginacao($request);
+        $lista = $this->repository->findBy(
+            $informacoesDeFiltro,
+            $informacoesDeOrdenacao,
+            $itensPorPagina,
+            ($paginaAtual - 1) * $itensPorPagina
+            );
+        return new JsonResponse($lista);
     }
 
     public function buscarUm(int $id): Response
